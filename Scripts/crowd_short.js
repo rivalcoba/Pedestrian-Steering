@@ -1,7 +1,7 @@
 ﻿// Create Sketch Object
 var sketch = new Processing.Sketch();
 
-sketch.attachFunction = function (processing) {
+sketch.attachFunction = function (processing, vMath) {
     // Variable global para el pedestrian
     var ped;
     var theCrowd;
@@ -52,14 +52,420 @@ sketch.attachFunction = function (processing) {
         }
     };
 
-    // ========= IMPORTANT FUNCTIONS ===========
-    // ----> Knowledge Of Behavior
-    // 0: Goal Lenght
-    // 1: Vel x
-    // 2: Vel y
-    // 3: Clossenes
+    // --------------------------------------
+    // ================= SETUP ==============
+    // --------------------------------------
+    processing.setup = function () {
+        //processing.noLoop();
+        
+        // Estableciendo el tamaño del Terreno
+        processing.size(WIDTH, HEIHT);
+        
+        var crowdPopulation = Number(prompt("Enter the crowd Population"));
+        
+        if(crowdPopulation > 1)
+        {
+            crowdEnable = true;            
+            theCrowd = new crowd(crowdPopulation);
+        }
+        else
+        {
+            // Inicializando y creando al pedestrian
+            ped = new Pedestrian(new processing.PVector(250, 250));
+            ped.goalCoord = new processing.PVector(125, 125); 
+        }            
+    };
 
-    var kob = {        
+    // --------------------------------------
+    // ================= DRAW ===============
+    // --------------------------------------
+    // Override draw function, by default it will be called
+    // 60 times per second
+    processing.draw = function () {
+        // Erase background
+        processing.background(1, 54, 120);
+
+        if(crowdEnable)
+        {
+            // Update Function
+            theCrowd.update();
+            // Render pedestrian
+            theCrowd.render();
+        }
+        else
+        {
+            // Update Function
+            ped.update();
+            // Render pedestrian
+            ped.render();
+        }        
+    };
+
+    // --------------------------------------
+    // ================= Pedestrian ============
+    // --------------------------------------
+    var Pedestrian = function (location) {
+        // Variables
+        this.alpha = 0.0; // Pedestrian angle
+        // Social Forces
+        this.neighborsForce = new processing.PVector(0.0,0.0);
+        // Color of pedestrian
+        this.rColor = Math.floor(Math.random() * (255 - 0)) + 0;          
+        this.gColor = Math.floor(Math.random() * (255 - 0)) + 0;
+        this.bColor = Math.floor(Math.random() * (255 - 0)) + 0;
+
+        // Movement variables
+        this.state = "stop"; //stop, walking, goal
+        this.startPosition = new processing.PVector(location.x,location.y);
+        this.lastPosition = new processing.PVector(location.x,location.y);
+        this.goalCoord = new processing.PVector(0, 0);
+        this.location = new processing.PVector(location.x,location.y);
+        this.velocity = new processing.PVector(0, 0);
+        // Extras
+        this.aceleration = new processing.PVector(0, 0);
+        this.r = 4.0;
+        this.maxForce = 0.03; // Maximun steering force
+        this.maxSpeed = 2.0; //  Maximun speed        
+
+        // Hello function
+        this.saluda = function () {
+            alert("Soy el pedestrian.");
+        };
+
+        this.initializePedestrian = function () {            
+        };
+
+        // ----> Update Function
+        this.update = function()
+        {
+            kob.getBehavior(this);           
+        };
+
+        this.render = function () {
+            // Render Pedestrian                      
+            processing.fill(this.rColor, this.gColor, this.bColor);
+            processing.stroke(255);
+            processing.pushMatrix();
+            processing.translate(this.location.x,
+                                this.location.y);
+            processing.rotate(this.alpha);
+            processing.beginShape(processing.TRIANGLES);
+            processing.vertex(0, -this.r * 2);
+            processing.vertex(-this.r, this.r * 2);
+            processing.vertex(this.r, this.r * 2);
+            processing.endShape();
+            processing.popMatrix();
+
+            // Render Goal            
+            processing.fill(this.rColor, this.gColor, 0);
+            processing.stroke(255);
+            processing.ellipse(this.goalCoord.x,this.goalCoord.y,10,10);
+        };
+
+        // Get the last displacement
+        this.getLastDisplacement = function () {
+            return new processing.PVector.sub(this.lastPosition, this.startPosition);
+        };
+
+        // Get current displacement
+        this.getCurrentDisplacement = function () {
+            return new processing.PVector.sub(this.location, this.startPosition);
+        };
+
+        // Get Velocity
+        this.getVelocity = function () {
+            var cd = this.getCurrentDisplacement();
+            var ld = this.getLastDisplacement();
+            // TODO: WARNING: ESTA DEMAS UNA INSTRUCCION
+            var _velocity = processing.PVector.sub(cd,ld);
+            this.velocity = new processing.PVector(_velocity.x,_velocity.y);
+            return _velocity;
+            //return new processing.PVector.sub(this.getCurrentDisplacement(),
+            //this.getLastDisplacement());
+        };
+
+        // Get Goal Vector
+        this.getGoalVector = function () {
+            return new processing.PVector.sub(this.goalCoord,
+            this.startPosition);
+        };
+
+        // Perform Action
+        this.performAction = function(actionVector){
+            this.lastPosition = new processing.PVector(this.location.x,
+            this.location.y);
+            if( this.state === "goal") //stop, walking, goal)
+            {
+                // Se genera nueva meta
+                // TODO: Generar nueva meta                                
+                //console.log("Llego a la meta");
+                this.state = "stop";
+                
+                // Ajustando posicion de meta
+                this.location = 
+                    new processing.PVector(this.goalCoord.x, this.goalCoord.y);
+
+                // Actualizando la posición anterior
+                this.startPosition = 
+                    new processing.PVector(this.location.x,this.location.y);
+                this.lastPosition = 
+                    new processing.PVector(this.location.x,this.location.y);
+
+                this.velocity = new processing.PVector(0, 0);
+
+                // Asignando una nueva meta
+                var xg;// = Math.floor(Math.random() * (WIDTH - 0)) + 0;
+                var yg;// = Math.floor(Math.random() * (HEIHT - 0)) + 0;
+                do
+                {
+                    xg = Math.floor(Math.random() * (WIDTH - 10)) + 0;
+                    yg = Math.floor(Math.random() * (HEIHT - 10)) + 0;
+
+                }while(
+                    Math.sqrt(
+                        Math.pow(xg - this.location.x,2) + 
+                        Math.pow(yg - this.location.y,2)
+                        ) < 10);
+                
+                this.goalCoord = 
+                    new processing.PVector(xg, yg);
+
+                //console.log("gvg: " + this.getGoalVector().mag());
+
+                // Asignando el estado de caminando
+                this.state = "walking";
+                
+            }
+            else
+            {
+                this.state = "walking";
+                this.location.x = this.location.x + actionVector.x/1.3;
+                this.location.y = this.location.y + actionVector.y/1.3;                
+            }
+        }
+    };
+    
+    // --------------------------------------
+    // --------------------------------------
+    // ================= Crowd ============
+    // --------------------------------------
+    // --------------------------------------
+    var crowd = function(population){
+        // Create the population
+        this.crowdArray = [];
+        
+        // Initialize Crowd
+        for(var i = 0; i < population; i++)
+        {
+            // Creating position
+            // Asignando una nueva meta
+            var _xg = Math.floor(Math.random() * (WIDTH - 0)) + 0;
+            var _yg = Math.floor(Math.random() * (HEIHT - 0)) + 0;
+            ped = new Pedestrian(new processing.PVector(_xg, _yg));
+            _xg = Math.floor(Math.random() * (WIDTH - 0)) + 0;
+            _yg = Math.floor(Math.random() * (HEIHT - 0)) + 0;
+            ped.goalCoord = new processing.PVector(_xg, _xg);
+            this.crowdArray.push(ped);
+        };
+
+        // Methods
+        this.update = function(){
+            // Parameter            
+            var a_i = 2000.0; // Interaction force parameter
+            var b_i = 0.8; // Interaction force parameter
+            var k_big = 120000.0; // Bodyforce parameter
+            var k_small = 240000.0; // Sliding force parameter
+
+            // Sum of the radious of pedestrian
+            // space
+            var r_ij = 0; //r_i = 4 + r_j = 4
+
+            for(var i = 0; i < population; i++)
+            {                
+                // Initialing neighborsForce of i_th pedestrian
+                this.crowdArray[i].neighborsForce = 
+                    new processing.PVector(0.0,0.0);
+                // Avoidance Calculations
+                // j: Other pedestrian index
+                for(var j = 0; j < population; j++)
+                {
+                    r_ij = 12;//this.crowdArray[i].r + this.crowdArray[j].r;
+                    if(i != j)
+                    {
+                        // Distance between pedestrinas
+                        var d_ij = 
+                            processing.PVector.dist(
+                                this.crowdArray[i].location,
+                                this.crowdArray[j].location);
+                        // CheckGroups
+
+                        // Avoid far away pedestrias
+                        if(d_ij <= 2 * r_ij) // org: d_ij <= 4 * r_ij
+                        {
+                            var gDelta_r_ij_d_ij = r_ij - d_ij;
+                            if(d_ij > r_ij )
+                                gDelta_r_ij_d_ij = 0;
+                            // Normalization (unitary vector)
+                            // of i to j pedestrians
+                            var n_ij = 
+                                processing.PVector.sub(
+                                    this.crowdArray[i].location,
+                                    this.crowdArray[j].location);
+                            n_ij.normalize();
+
+                            //console.log("n_ij: " + n_ij.x + "," + n_ij.y);
+                            // Tangencial force
+                            var t_ij =
+                                new processing.PVector(-n_ij.y,n_ij.x);
+
+                            // Sliding force
+                            var slidingForce = 
+                                processing.PVector.mult(t_ij,
+                                    k_small * (gDelta_r_ij_d_ij) *
+                                    processing.PVector.dot(processing.PVector.sub
+                                        (this.crowdArray[j].velocity,
+                                        this.crowdArray[i].velocity),t_ij)
+                                );
+
+                            // scalar magnitude
+                            // Force of interaction
+                            var interactionForce =
+                                a_i * Math.exp((r_ij - d_ij) / b_i);                            
+
+                            // scalar magnitude
+                            // Body force = 
+                            // K_big *(r_ij-d_ij)                            
+                            var bodyForce = k_big * (gDelta_r_ij_d_ij);
+
+                            // Fuerza de estrujamiento
+                            var squeezeForce = 
+                                processing.PVector.mult(
+                                    n_ij, interactionForce + bodyForce);
+
+                            // Current pedestrian neighborsForce
+                            var thisPedneighborsForce = 
+                                processing.PVector.add(squeezeForce,slidingForce);
+
+                            // neighborsForce = neighborsForce + thisPedneighborsForce
+                            this.crowdArray[i].neighborsForce.add(thisPedneighborsForce);
+                        }
+                    }
+                }
+                // Update goals movement
+                this.crowdArray[i].update();
+            }
+        };
+
+        this.render = function(){
+            for(var i = 0; i < population; i++)
+            {
+                this.crowdArray[i].render();
+            }
+        };
+    };    
+
+    var kob = {
+        // Find the nearest behavior Method
+        getBehavior: function (pdestrian) {
+            // Generate vof
+            var goal;
+            // Hardcodeado implementar rutina en C# que incruste el valor 
+            // maximo de meta
+            var maxGoalValue = 102.41;
+            //console.log("gv: " + pdestrian.getGoalVector().mag());
+            var gv = pdestrian.getGoalVector().mag();
+            if(pdestrian.getGoalVector().mag() > maxGoalValue)
+            {
+                // Se reasigna posición inicial                
+                pdestrian.startPosition = 
+                    new processing.PVector(
+                        pdestrian.location.x, pdestrian.location.y);
+                pdestrian.lastPosition = 
+                    new processing.PVector(
+                        pdestrian.location.x, pdestrian.location.y);
+                goal = pdestrian.getGoalVector();                
+            }
+            else
+            {
+                goal = pdestrian.getGoalVector();
+            }            
+
+            // Calculating Normalization Angle
+            var angle = vMath.calcNormalizationAngle(goal);            
+            
+            // Normalizing Goal
+            var normGoal = vMath.rotate2DVector(goal, angle);
+
+            // Make the vector of feature to calculate action
+            var velocity = pdestrian.getVelocity();
+            // Normilize speed vector
+            velocity = vMath.rotate2DVector(velocity, angle);
+
+            // Calculating displacement
+            var displacement = pdestrian.getCurrentDisplacement();
+            // Normilizing displacement
+            displacement = vMath.rotate2DVector(displacement, angle);
+
+            // Calculating clossenes percetange
+            var closenessComponent = 
+                vMath.ClosenessPercentage(displacement, normGoal);
+
+            // The Character got the goal
+            if(closenessComponent >= 0.95)
+            {
+                pdestrian.state = "goal";                
+            }
+
+            // Construcción del vector de caracteristicas
+            var v1 = [normGoal.y, velocity.x, velocity.y, closenessComponent];
+
+            // Calculando comportamiento
+            var optimalDistance = Number.MAX_VALUE;
+            var indexOfOptimalDistance = 0;
+
+            // Move vector
+            var moveVector = new processing.PVector(0,0);
+            
+            // Seraching the index of the optimal distance
+            for (var i = 0; i < this.matrixOfBehaviors.length; i++) {
+                var eDist = // euclidean dist
+                    Math.sqrt(
+                    Math.pow(v1[0] - this.matrixOfBehaviors[i][0], 2) +
+                    Math.pow(v1[1] - this.matrixOfBehaviors[i][1], 2) +
+                    Math.pow(v1[2] - this.matrixOfBehaviors[i][2], 2) +
+                    Math.pow(v1[3] - this.matrixOfBehaviors[i][3], 2));
+                if (eDist < optimalDistance) {
+                    optimalDistance = eDist;
+                    indexOfOptimalDistance = i;
+                }
+            }
+            
+            moveVector = new processing.PVector
+                (this.matrixOfBehaviors[indexOfOptimalDistance][4],
+                this.matrixOfBehaviors[indexOfOptimalDistance][5]);
+            
+            // Rotate vector (Unormilize)
+            moveVector = vMath.rotate2DVector(moveVector, -angle);
+            
+
+            // Adding social neighbors forces
+            moveVector.add(pdestrian.neighborsForce);
+
+            // Set the pedestrian angle
+            pdestrian.alpha = moveVector.heading2D() + processing.radians(90);
+
+            // Limit moveVector
+            moveVector.limit(2);            
+            
+            // Move pedestrian acording to calculated vector
+            pdestrian.performAction(moveVector);
+        },
+        // ========= IMPORTANT FUNCTIONS ===========
+        // ----> Knowledge Of Behavior
+        // 0: Goal Lenght
+        // 1: Vel x
+        // 2: Vel y
+        // 3: Clossenes
         matrixOfBehaviors:
             [[ 2.84, 0.00, 0.00, 0.00, 0.00, 2.84],
             [ 2.84, 0.00, 2.84, 1.00, 0.00, 0.00],
@@ -879,416 +1285,8 @@ sketch.attachFunction = function (processing) {
             [102.41, 0.13, 2.73, 0.92, 0.02, 2.66],
             [102.41, 0.02, 2.66, 0.95,-0.04, 2.55],
             [102.41,-0.04, 2.55, 0.97,-0.14, 2.59],
-            [102.41,-0.14, 2.59, 1.00, 0.00, 0.00]],
-
-        // Find the nearest behavior Method
-        getBehavior: function (pdestrian) {
-            // Generate vof
-            var goal;
-            // Hardcodeado implementar rutina en C# que incruste el valor 
-            // maximo de meta
-            var maxGoalValue = 102.41;
-            //console.log("gv: " + pdestrian.getGoalVector().mag());
-            var gv = pdestrian.getGoalVector().mag();
-            if(pdestrian.getGoalVector().mag() > maxGoalValue)
-            {
-                // Se reasigna posición inicial                
-                pdestrian.startPosition = 
-                    new processing.PVector(
-                        pdestrian.location.x, pdestrian.location.y);
-                pdestrian.lastPosition = 
-                    new processing.PVector(
-                        pdestrian.location.x, pdestrian.location.y);
-                goal = pdestrian.getGoalVector();                
-            }
-            else
-            {
-                goal = pdestrian.getGoalVector();
-            }            
-
-            // Calculating Normalization Angle
-            var angle = vMath.calcNormalizationAngle(goal);            
-            
-            // Normalizing Goal
-            var normGoal = vMath.rotate2DVector(goal, angle);
-
-            // Make the vector of feature to calculate action
-            var velocity = pdestrian.getVelocity();
-            // Normilize speed vector
-            velocity = vMath.rotate2DVector(velocity, angle);
-
-            // Calculating displacement
-            var displacement = pdestrian.getCurrentDisplacement();
-            // Normilizing displacement
-            displacement = vMath.rotate2DVector(displacement, angle);
-
-            // Calculating clossenes percetange
-            var closenessComponent = 
-                vMath.ClosenessPercentage(displacement, normGoal);
-
-            // The Character got the goal
-            if(closenessComponent >= 0.95)
-            {
-                pdestrian.state = "goal";                
-            }
-
-            // Construcción del vector de caracteristicas
-            var v1 = [normGoal.y, velocity.x, velocity.y, closenessComponent];
-
-            // Calculando comportamiento
-            var optimalDistance = Number.MAX_VALUE;
-            var indexOfOptimalDistance = 0;
-
-            // Move vector
-            var moveVector = new processing.PVector(0,0);
-            
-            // Seraching the index of the optimal distance
-            for (var i = 0; i < this.matrixOfBehaviors.length; i++) {
-                var eDist = // euclidean dist
-                    Math.sqrt(
-                    Math.pow(v1[0] - this.matrixOfBehaviors[i][0], 2) +
-                    Math.pow(v1[1] - this.matrixOfBehaviors[i][1], 2) +
-                    Math.pow(v1[2] - this.matrixOfBehaviors[i][2], 2) +
-                    Math.pow(v1[3] - this.matrixOfBehaviors[i][3], 2));
-                if (eDist < optimalDistance) {
-                    optimalDistance = eDist;
-                    indexOfOptimalDistance = i;
-                }
-            }
-            
-            moveVector = new processing.PVector
-                (this.matrixOfBehaviors[indexOfOptimalDistance][4],
-                this.matrixOfBehaviors[indexOfOptimalDistance][5]);
-            
-            // Rotate vector (Unormilize)
-            moveVector = vMath.rotate2DVector(moveVector, -angle);
-            
-
-            // Adding social neighbors forces
-            moveVector.add(pdestrian.neighborsForce);
-
-            // Set the pedestrian angle
-            pdestrian.alpha = moveVector.heading2D() + processing.radians(90);
-
-            // Limit moveVector
-            moveVector.limit(2);            
-            
-            // Move pedestrian acording to calculated vector
-            pdestrian.performAction(moveVector);
-        }
+            [102.41,-0.14, 2.59, 1.00, 0.00, 0.00]]
     };
-
-    // --------------------------------------
-    // ================= SETUP ==============
-    // --------------------------------------
-    processing.setup = function () {
-        //processing.noLoop();
-        
-        // Estableciendo el tamaño del Terreno
-        processing.size(WIDTH, HEIHT);
-        
-        var crowdPopulation = Number(prompt("Enter the crowd Population"));
-        
-        if(crowdPopulation > 1)
-        {
-            crowdEnable = true;            
-            theCrowd = new crowd(crowdPopulation);
-        }
-        else
-        {
-            // Inicializando y creando al pedestrian
-            ped = new Pedestrian(new processing.PVector(250, 250));
-            ped.goalCoord = new processing.PVector(125, 125); 
-        }            
-    };
-
-    // --------------------------------------
-    // ================= DRAW ===============
-    // --------------------------------------
-    // Override draw function, by default it will be called
-    // 60 times per second
-    processing.draw = function () {
-        // Erase background
-        processing.background(1, 54, 120);
-
-        if(crowdEnable)
-        {
-            // Update Function
-            theCrowd.update();
-            // Render pedestrian
-            theCrowd.render();
-        }
-        else
-        {
-            // Update Function
-            ped.update();
-            // Render pedestrian
-            ped.render();
-        }        
-    };
-
-    // --------------------------------------
-    // ================= Pedestrian ============
-    // --------------------------------------
-    var Pedestrian = function (location) {
-        // Variables
-        this.alpha = 0.0; // Pedestrian angle
-        // Social Forces
-        this.neighborsForce = new processing.PVector(0.0,0.0);
-        // Color of pedestrian
-        this.rColor = Math.floor(Math.random() * (255 - 0)) + 0;          
-        this.gColor = Math.floor(Math.random() * (255 - 0)) + 0;
-        this.bColor = Math.floor(Math.random() * (255 - 0)) + 0;
-
-        // Movement variables
-        this.state = "stop"; //stop, walking, goal
-        this.startPosition = new processing.PVector(location.x,location.y);
-        this.lastPosition = new processing.PVector(location.x,location.y);
-        this.goalCoord = new processing.PVector(0, 0);
-        this.location = new processing.PVector(location.x,location.y);
-        this.velocity = new processing.PVector(0, 0);
-        // Extras
-        this.aceleration = new processing.PVector(0, 0);
-        this.r = 4.0;
-        this.maxForce = 0.03; // Maximun steering force
-        this.maxSpeed = 2.0; //  Maximun speed        
-
-        // Hello function
-        this.saluda = function () {
-            alert("Soy el pedestrian.");
-        };
-
-        this.initializePedestrian = function () {            
-        };
-
-        // ----> Update Function
-        this.update = function()
-        {
-            kob.getBehavior(this);           
-        };
-
-        this.render = function () {
-            // Render Pedestrian                      
-            processing.fill(this.rColor, this.gColor, this.bColor);
-            processing.stroke(255);
-            processing.pushMatrix();
-            processing.translate(this.location.x,
-                                this.location.y);
-            processing.rotate(this.alpha);
-            processing.beginShape(processing.TRIANGLES);
-            processing.vertex(0, -this.r * 2);
-            processing.vertex(-this.r, this.r * 2);
-            processing.vertex(this.r, this.r * 2);
-            processing.endShape();
-            processing.popMatrix();
-
-            // Render Goal            
-            processing.fill(this.rColor, this.gColor, 0);
-            processing.stroke(255);
-            processing.ellipse(this.goalCoord.x,this.goalCoord.y,10,10);
-        };
-
-        // Get the last displacement
-        this.getLastDisplacement = function () {
-            return new processing.PVector.sub(this.lastPosition, this.startPosition);
-        };
-
-        // Get current displacement
-        this.getCurrentDisplacement = function () {
-            return new processing.PVector.sub(this.location, this.startPosition);
-        };
-
-        // Get Velocity
-        this.getVelocity = function () {
-            var cd = this.getCurrentDisplacement();
-            var ld = this.getLastDisplacement();
-            // TODO: WARNING: ESTA DEMAS UNA INSTRUCCION
-            var _velocity = processing.PVector.sub(cd,ld);
-            this.velocity = new processing.PVector(_velocity.x,_velocity.y);
-            return _velocity;
-            //return new processing.PVector.sub(this.getCurrentDisplacement(),
-            //this.getLastDisplacement());
-        };
-
-        // Get Goal Vector
-        this.getGoalVector = function () {
-            return new processing.PVector.sub(this.goalCoord,
-            this.startPosition);
-        };
-
-        // Perform Action
-        this.performAction = function(actionVector){
-            this.lastPosition = new processing.PVector(this.location.x,
-            this.location.y);
-            if( this.state === "goal") //stop, walking, goal)
-            {
-                // Se genera nueva meta
-                // TODO: Generar nueva meta                                
-                //console.log("Llego a la meta");
-                this.state = "stop";
-                
-                // Ajustando posicion de meta
-                this.location = 
-                    new processing.PVector(this.goalCoord.x, this.goalCoord.y);
-
-                // Actualizando la posición anterior
-                this.startPosition = 
-                    new processing.PVector(this.location.x,this.location.y);
-                this.lastPosition = 
-                    new processing.PVector(this.location.x,this.location.y);
-
-                this.velocity = new processing.PVector(0, 0);
-
-                // Asignando una nueva meta
-                var xg;// = Math.floor(Math.random() * (WIDTH - 0)) + 0;
-                var yg;// = Math.floor(Math.random() * (HEIHT - 0)) + 0;
-                do
-                {
-                    xg = Math.floor(Math.random() * (WIDTH - 10)) + 0;
-                    yg = Math.floor(Math.random() * (HEIHT - 10)) + 0;
-
-                }while(
-                    Math.sqrt(
-                        Math.pow(xg - this.location.x,2) + 
-                        Math.pow(yg - this.location.y,2)
-                        ) < 10);
-                
-                this.goalCoord = 
-                    new processing.PVector(xg, yg);
-
-                //console.log("gvg: " + this.getGoalVector().mag());
-
-                // Asignando el estado de caminando
-                this.state = "walking";
-                
-            }
-            else
-            {
-                this.state = "walking";
-                this.location.x = this.location.x + actionVector.x/1.3;
-                this.location.y = this.location.y + actionVector.y/1.3;                
-            }
-        }
-    };
-    
-    // --------------------------------------
-    // --------------------------------------
-    // ================= Crowd ============
-    // --------------------------------------
-    // --------------------------------------
-    var crowd = function(population){
-        // Create the population
-        this.crowdArray = [];
-        
-        // Initialize Crowd
-        for(var i = 0; i < population; i++)
-        {
-            // Creating position
-            // Asignando una nueva meta
-            var _xg = Math.floor(Math.random() * (WIDTH - 0)) + 0;
-            var _yg = Math.floor(Math.random() * (HEIHT - 0)) + 0;
-            ped = new Pedestrian(new processing.PVector(_xg, _yg));
-            _xg = Math.floor(Math.random() * (WIDTH - 0)) + 0;
-            _yg = Math.floor(Math.random() * (HEIHT - 0)) + 0;
-            ped.goalCoord = new processing.PVector(_xg, _xg);
-            this.crowdArray.push(ped);
-        };
-
-        // Methods
-        this.update = function(){
-            // Parameter            
-            var a_i = 2000.0; // Interaction force parameter
-            var b_i = 0.8; // Interaction force parameter
-            var k_big = 120000.0; // Bodyforce parameter
-            var k_small = 240000.0; // Sliding force parameter
-
-            // Sum of the radious of pedestrian
-            // space
-            var r_ij = 0; //r_i = 4 + r_j = 4
-
-            for(var i = 0; i < population; i++)
-            {                
-                // Initialing neighborsForce of i_th pedestrian
-                this.crowdArray[i].neighborsForce = 
-                    new processing.PVector(0.0,0.0);
-                // Avoidance Calculations
-                // j: Other pedestrian index
-                for(var j = 0; j < population; j++)
-                {
-                    r_ij = 12;//this.crowdArray[i].r + this.crowdArray[j].r;
-                    if(i != j)
-                    {
-                        // Distance between pedestrinas
-                        var d_ij = 
-                            processing.PVector.dist(
-                                this.crowdArray[i].location,
-                                this.crowdArray[j].location);
-                        // CheckGroups
-
-                        // Avoid far away pedestrias
-                        if(d_ij <= 2 * r_ij) // org: d_ij <= 4 * r_ij
-                        {
-                            var gDelta_r_ij_d_ij = r_ij - d_ij;
-                            if(d_ij > r_ij )
-                                gDelta_r_ij_d_ij = 0;
-                            // Normalization (unitary vector)
-                            // of i to j pedestrians
-                            var n_ij = 
-                                processing.PVector.sub(
-                                    this.crowdArray[i].location,
-                                    this.crowdArray[j].location);
-                            n_ij.normalize();
-
-                            //console.log("n_ij: " + n_ij.x + "," + n_ij.y);
-                            // Tangencial force
-                            var t_ij =
-                                new processing.PVector(-n_ij.y,n_ij.x);
-
-                            // Sliding force
-                            var slidingForce = 
-                                processing.PVector.mult(t_ij,
-                                    k_small * (gDelta_r_ij_d_ij) *
-                                    processing.PVector.dot(processing.PVector.sub
-                                        (this.crowdArray[j].velocity,
-                                        this.crowdArray[i].velocity),t_ij)
-                                );
-
-                            // scalar magnitude
-                            // Force of interaction
-                            var interactionForce =
-                                a_i * Math.exp((r_ij - d_ij) / b_i);                            
-
-                            // scalar magnitude
-                            // Body force = 
-                            // K_big *(r_ij-d_ij)                            
-                            var bodyForce = k_big * (gDelta_r_ij_d_ij);
-
-                            // Fuerza de estrujamiento
-                            var squeezeForce = 
-                                processing.PVector.mult(
-                                    n_ij, interactionForce + bodyForce);
-
-                            // Current pedestrian neighborsForce
-                            var thisPedneighborsForce = 
-                                processing.PVector.add(squeezeForce,slidingForce);
-
-                            // neighborsForce = neighborsForce + thisPedneighborsForce
-                            this.crowdArray[i].neighborsForce.add(thisPedneighborsForce);
-                        }
-                    }
-                }
-                // Update goals movement
-                this.crowdArray[i].update();
-            }
-        };
-
-        this.render = function(){
-            for(var i = 0; i < population; i++)
-            {
-                this.crowdArray[i].render();
-            }
-        };
-    }
 };
 
 // ------- Attach Sketch to canvas --------
