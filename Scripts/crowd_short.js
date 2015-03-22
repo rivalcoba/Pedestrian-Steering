@@ -65,8 +65,11 @@ sketch.attachFunction = function (processing, vMath) {
         
         if(crowdPopulation > 1)
         {
-            crowdEnable = true;            
-            theCrowd = new crowd(crowdPopulation);
+            crowdEnable = true;
+            // Creating crowd
+            theCrowd = new crowd();
+            // init crowd
+            theCrowd.populateRandomly(crowdPopulation);
         }
         else
         {
@@ -125,7 +128,29 @@ sketch.attachFunction = function (processing, vMath) {
         this.aceleration = new processing.PVector(0, 0);
         this.r = 4.0;
         this.maxForce = 0.03; // Maximun steering force
-        this.maxSpeed = 2.0; //  Maximun speed        
+        this.maxSpeed = 2.0; //  Maximun speed 
+
+        // Generate Goals
+        this.generateNewGoal = function(xg, yg){
+            this.goalCoord = 
+                  new processing.PVector(xg, yg);
+        };
+        // -
+        this.generateNewRandomGoal = function(){
+            var xg;// = Math.floor(Math.random() * (WIDTH - 0)) + 0;
+            var yg;// = Math.floor(Math.random() * (HEIHT - 0)) + 0;
+            do
+            {
+                  xg = Math.floor(Math.random() * (WIDTH - 10)) + 0;
+                  yg = Math.floor(Math.random() * (HEIHT - 10)) + 0;
+            }while(
+                    Math.sqrt(
+                        Math.pow(xg - this.location.x,2) + 
+                        Math.pow(yg - this.location.y,2)
+                        ) < 10);
+            this.goalCoord = 
+                  new processing.PVector(xg, yg);            
+        };
 
         // Hello function
         this.saluda = function () {
@@ -192,8 +217,10 @@ sketch.attachFunction = function (processing, vMath) {
 
         // Perform Action
         this.performAction = function(actionVector){
-            this.lastPosition = new processing.PVector(this.location.x,
-            this.location.y);
+            this.lastPosition = 
+                  new processing.PVector(
+                        this.location.x,
+                        this.location.y);
             if( this.state === "goal") //stop, walking, goal)
             {
                 // Se genera nueva meta
@@ -214,27 +241,12 @@ sketch.attachFunction = function (processing, vMath) {
                 this.velocity = new processing.PVector(0, 0);
 
                 // Asignando una nueva meta
-                var xg;// = Math.floor(Math.random() * (WIDTH - 0)) + 0;
-                var yg;// = Math.floor(Math.random() * (HEIHT - 0)) + 0;
-                do
-                {
-                    xg = Math.floor(Math.random() * (WIDTH - 10)) + 0;
-                    yg = Math.floor(Math.random() * (HEIHT - 10)) + 0;
-
-                }while(
-                    Math.sqrt(
-                        Math.pow(xg - this.location.x,2) + 
-                        Math.pow(yg - this.location.y,2)
-                        ) < 10);
-                
-                this.goalCoord = 
-                    new processing.PVector(xg, yg);
-
-                //console.log("gvg: " + this.getGoalVector().mag());
+                this.generateNewRandomGoal();
+                console.log("xg: " + this.goalCoord.x + 
+                  " yg: " + this.goalCoord.y);
 
                 // Asignando el estado de caminando
-                this.state = "walking";
-                
+                this.state = "walking";                
             }
             else
             {
@@ -250,22 +262,42 @@ sketch.attachFunction = function (processing, vMath) {
     // ================= Crowd ============
     // --------------------------------------
     // --------------------------------------
-    var crowd = function(population){
+    var crowd = function(){
         // Create the population
         this.crowdArray = [];
-        
-        // Initialize Crowd
-        for(var i = 0; i < population; i++)
+        this.population = 0;
+
+        // Crowd Pupulation function
+        this.push = function(pedestrian)
         {
-            // Creating position
-            // Asignando una nueva meta
-            var _xg = Math.floor(Math.random() * (WIDTH - 0)) + 0;
-            var _yg = Math.floor(Math.random() * (HEIHT - 0)) + 0;
-            ped = new Pedestrian(new processing.PVector(_xg, _yg));
-            _xg = Math.floor(Math.random() * (WIDTH - 0)) + 0;
-            _yg = Math.floor(Math.random() * (HEIHT - 0)) + 0;
-            ped.goalCoord = new processing.PVector(_xg, _xg);
-            this.crowdArray.push(ped);
+            this.crowdArray.push(pedestrian);
+            this.population++;
+        };
+
+        this.populate = function(pedBatch){
+            for(var i = 0; i < pedBatch.length; i++)
+            {
+                  // TODO-BOOKMARK: Terminar
+                  // la funcion que agrega
+                  // una multitud por lote [loc,goal]
+            }
+        };
+        // 
+        this.populateRandomly = function(crowdSize){
+            this.population = crowdSize;
+            // Initialize Crowd
+            for(var i = 0; i < this.population; i++)
+            {
+                  // Creating position
+                  // Asignando una nueva meta
+                  var _xg = Math.floor(Math.random() * (WIDTH - 0)) + 0;
+                  var _yg = Math.floor(Math.random() * (HEIHT - 0)) + 0;
+                  ped = new Pedestrian(new processing.PVector(_xg, _yg));
+                  _xg = Math.floor(Math.random() * (WIDTH - 0)) + 0;
+                  _yg = Math.floor(Math.random() * (HEIHT - 0)) + 0;
+                  ped.goalCoord = new processing.PVector(_xg, _xg);
+                  this.crowdArray.push(ped);
+            };
         };
 
         // Methods
@@ -280,14 +312,14 @@ sketch.attachFunction = function (processing, vMath) {
             // space
             var r_ij = 0; //r_i = 4 + r_j = 4
 
-            for(var i = 0; i < population; i++)
+            for(var i = 0; i < this.population; i++)
             {                
                 // Initialing neighborsForce of i_th pedestrian
                 this.crowdArray[i].neighborsForce = 
                     new processing.PVector(0.0,0.0);
                 // Avoidance Calculations
                 // j: Other pedestrian index
-                for(var j = 0; j < population; j++)
+                for(var j = 0; j < this.population; j++)
                 {
                     r_ij = 12;//this.crowdArray[i].r + this.crowdArray[j].r;
                     if(i != j)
@@ -343,11 +375,11 @@ sketch.attachFunction = function (processing, vMath) {
                                     n_ij, interactionForce + bodyForce);
 
                             // Current pedestrian neighborsForce
-                            var thisPedneighborsForce = 
+                            var PedNeighborsForce = 
                                 processing.PVector.add(squeezeForce,slidingForce);
 
-                            // neighborsForce = neighborsForce + thisPedneighborsForce
-                            this.crowdArray[i].neighborsForce.add(thisPedneighborsForce);
+                            // neighborsForce = neighborsForce + PedNeighborsForce
+                            this.crowdArray[i].neighborsForce.add(PedNeighborsForce);
                         }
                     }
                 }
@@ -357,7 +389,7 @@ sketch.attachFunction = function (processing, vMath) {
         };
 
         this.render = function(){
-            for(var i = 0; i < population; i++)
+            for(var i = 0; i < this.population; i++)
             {
                 this.crowdArray[i].render();
             }
