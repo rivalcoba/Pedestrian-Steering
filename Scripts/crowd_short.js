@@ -63,7 +63,7 @@ sketch.attachFunction = function (processing, vMath) {
         
         var crowdPopulation = Number(prompt("Enter the crowd Population"));
         
-        if(crowdPopulation > 1)
+        if(true)
         {
             crowdEnable = true;
             // Creating crowd
@@ -160,10 +160,10 @@ sketch.attachFunction = function (processing, vMath) {
         this.initializePedestrian = function () {            
         };
 
-        // ----> Update Function
+        // ----> #update pedestrian Function
         this.update = function()
         {
-            kob.getBehavior(this);           
+            kob.getDataDrivenBehavior(this);
         };
 
         this.render = function () {
@@ -277,7 +277,7 @@ sketch.attachFunction = function (processing, vMath) {
         this.populate = function(pedBatch){
             for(var i = 0; i < pedBatch.length; i++)
             {
-                  // TODO-BOOKMARK: Terminar
+                  // TODO-NOW: Terminar
                   // la funcion que agrega
                   // una multitud por lote [loc,goal]
             }
@@ -301,91 +301,9 @@ sketch.attachFunction = function (processing, vMath) {
         };
 
         // Methods
+        // #update Crowd
         this.update = function(){
-            // Parameter            
-            var a_i = 2000.0; // Interaction force parameter
-            var b_i = 0.8; // Interaction force parameter
-            var k_big = 120000.0; // Bodyforce parameter
-            var k_small = 240000.0; // Sliding force parameter
-
-            // Sum of the radious of pedestrian
-            // space
-            var r_ij = 0; //r_i = 4 + r_j = 4
-
-            for(var i = 0; i < this.population; i++)
-            {                
-                // Initialing neighborsForce of i_th pedestrian
-                this.crowdArray[i].neighborsForce = 
-                    new processing.PVector(0.0,0.0);
-                // Avoidance Calculations
-                // j: Other pedestrian index
-                for(var j = 0; j < this.population; j++)
-                {
-                    r_ij = 12;//this.crowdArray[i].r + this.crowdArray[j].r;
-                    if(i != j)
-                    {
-                        // Distance between pedestrinas
-                        var d_ij = 
-                            processing.PVector.dist(
-                                this.crowdArray[i].location,
-                                this.crowdArray[j].location);
-                        // CheckGroups
-
-                        // Avoid far away pedestrias
-                        if(d_ij <= 2 * r_ij) // org: d_ij <= 4 * r_ij
-                        {
-                            var gDelta_r_ij_d_ij = r_ij - d_ij;
-                            if(d_ij > r_ij )
-                                gDelta_r_ij_d_ij = 0;
-                            // Normalization (unitary vector)
-                            // of i to j pedestrians
-                            var n_ij = 
-                                processing.PVector.sub(
-                                    this.crowdArray[i].location,
-                                    this.crowdArray[j].location);
-                            n_ij.normalize();
-
-                            //console.log("n_ij: " + n_ij.x + "," + n_ij.y);
-                            // Tangencial force
-                            var t_ij =
-                                new processing.PVector(-n_ij.y,n_ij.x);
-
-                            // Sliding force
-                            var slidingForce = 
-                                processing.PVector.mult(t_ij,
-                                    k_small * (gDelta_r_ij_d_ij) *
-                                    processing.PVector.dot(processing.PVector.sub
-                                        (this.crowdArray[j].velocity,
-                                        this.crowdArray[i].velocity),t_ij)
-                                );
-
-                            // scalar magnitude
-                            // Force of interaction
-                            var interactionForce =
-                                a_i * Math.exp((r_ij - d_ij) / b_i);                            
-
-                            // scalar magnitude
-                            // Body force = 
-                            // K_big *(r_ij-d_ij)                            
-                            var bodyForce = k_big * (gDelta_r_ij_d_ij);
-
-                            // Fuerza de estrujamiento
-                            var squeezeForce = 
-                                processing.PVector.mult(
-                                    n_ij, interactionForce + bodyForce);
-
-                            // Current pedestrian neighborsForce
-                            var PedNeighborsForce = 
-                                processing.PVector.add(squeezeForce,slidingForce);
-
-                            // neighborsForce = neighborsForce + PedNeighborsForce
-                            this.crowdArray[i].neighborsForce.add(PedNeighborsForce);
-                        }
-                    }
-                }
-                // Update goals movement
-                this.crowdArray[i].update();
-            }
+            kob.getDataHelbingCrowdBehavior(this);            
         };
 
         this.render = function(){
@@ -398,7 +316,7 @@ sketch.attachFunction = function (processing, vMath) {
 
     var kob = {
         // Find the nearest behavior Method
-        getBehavior: function (pdestrian) {
+        getDataDrivenBehavior: function (pdestrian) {
             // Generate vof
             var goal;
             // Hardcodeado implementar rutina en C# que incruste el valor 
@@ -491,6 +409,93 @@ sketch.attachFunction = function (processing, vMath) {
             
             // Move pedestrian acording to calculated vector
             pdestrian.performAction(moveVector);
+        },
+        getDataHelbingCrowdBehavior : function(crowd){
+            // Parameter            
+            var a_i = 2000.0; // Interaction force parameter
+            var b_i = 0.8; // Interaction force parameter
+            var k_big = 120000.0; // Bodyforce parameter
+            var k_small = 240000.0; // Sliding force parameter
+
+            // Sum of the radious of pedestrian
+            // space
+            var r_ij = 0; //r_i = 4 + r_j = 4
+
+            for(var i = 0; i < crowd.population; i++)
+            {                
+                // Initialing neighborsForce of i_th pedestrian
+                crowd.crowdArray[i].neighborsForce = 
+                    new processing.PVector(0.0,0.0);
+                // Avoidance Calculations
+                // j: Other pedestrian index
+                for(var j = 0; j < crowd.population; j++)
+                {
+                    r_ij = 12;//this.crowdArray[i].r + this.crowdArray[j].r;
+                    if(i != j)
+                    {
+                        // Distance between pedestrinas
+                        var d_ij = 
+                            processing.PVector.dist(
+                                crowd.crowdArray[i].location,
+                                crowd.crowdArray[j].location);
+                        // CheckGroups
+
+                        // Avoid far away pedestrias
+                        if(d_ij <= 2 * r_ij) // org: d_ij <= 4 * r_ij
+                        {
+                            var gDelta_r_ij_d_ij = r_ij - d_ij;
+                            if(d_ij > r_ij )
+                                gDelta_r_ij_d_ij = 0;
+                            // Normalization (unitary vector)
+                            // of i to j pedestrians
+                            var n_ij = 
+                                processing.PVector.sub(
+                                    crowd.crowdArray[i].location,
+                                    crowd.crowdArray[j].location);
+                            n_ij.normalize();
+
+                            //console.log("n_ij: " + n_ij.x + "," + n_ij.y);
+                            // Tangencial force
+                            var t_ij =
+                                new processing.PVector(-n_ij.y,n_ij.x);
+
+                            // Sliding force
+                            var slidingForce = 
+                                processing.PVector.mult(t_ij,
+                                    k_small * (gDelta_r_ij_d_ij) *
+                                    processing.PVector.dot(processing.PVector.sub
+                                        (crowd.crowdArray[j].velocity,
+                                        crowd.crowdArray[i].velocity),t_ij)
+                                );
+
+                            // scalar magnitude
+                            // Force of interaction
+                            var interactionForce =
+                                a_i * Math.exp((r_ij - d_ij) / b_i);                            
+
+                            // scalar magnitude
+                            // Body force = 
+                            // K_big *(r_ij-d_ij)                            
+                            var bodyForce = k_big * (gDelta_r_ij_d_ij);
+
+                            // Fuerza de estrujamiento
+                            var squeezeForce = 
+                                processing.PVector.mult(
+                                    n_ij, interactionForce + bodyForce);
+
+                            // Current pedestrian neighborsForce
+                            var PedNeighborsForce = 
+                                processing.PVector.add(squeezeForce,slidingForce);
+
+                            // neighborsForce = neighborsForce + PedNeighborsForce
+                            crowd.crowdArray[i].neighborsForce.add(PedNeighborsForce);
+                        }
+                    }
+                }
+                // Update goals movement
+                //crowd.crowdArray[i].update();
+                this.getDataDrivenBehavior(crowd.crowdArray[i]);
+            }
         },
         // ========= IMPORTANT FUNCTIONS ===========
         // ----> Knowledge Of Behavior
