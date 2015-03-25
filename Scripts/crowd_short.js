@@ -57,7 +57,8 @@ sketch.attachFunction = function (processing, vMath) {
     // --------------------------------------
     processing.setup = function () {
         //processing.noLoop();
-        
+        // Creating crowd
+        theCrowd = new crowd();
         // Estableciendo el tamaño del Terreno
         processing.size(WIDTH, HEIHT);
         
@@ -67,17 +68,34 @@ sketch.attachFunction = function (processing, vMath) {
         {
             crowdEnable = true;
             // Creating crowd
-            theCrowd = new crowd();
+            //theCrowd = new crowd();
 
             // init crowd
             var inicioManual = confirm("Iniciar manualmente");
             if(inicioManual){
                 // Inicio manual
-                var population =
-                    [
-                        [10,10,100,100],
-                        [100,100,10,10]
-                    ];
+                var population; 
+                switch(1){
+                    case 0:
+                        population = [[10,10,300,300]];
+                        break;
+                    case 1: // Circle test
+                        population = 
+                        [[ 193.241240923023, 49.2603439123139, 175.150267496598, 364.027535211563],
+                        [ 284.021463158803, 84.6347397353912, 84.3700452608174, 328.653139388485],
+                        [ 336.671657527123, 166.612502952032, 31.7198508924980, 246.675376171845],
+                        [ 331.081239293572, 263.880914335170, 37.3102691260491, 149.406964788707],
+                        [ 99.0059502075814, 74.0011323557231, 269.385558212040, 339.286746768154],
+                        [ 175.150267496598, 364.027535211563, 193.241240923023, 49.2603439123139],
+                        [ 84.3700452608174, 328.653139388485, 284.021463158803, 84.6347397353912],
+                        [ 31.7198508924980, 246.675376171845, 336.671657527123, 166.612502952032],
+                        [ 37.3102691260491, 149.406964788707, 331.081239293572, 263.880914335170],
+                        [ 269.385558212040, 339.286746768154, 99.0059502075814, 74.0011323557231]];
+                        break;
+                    default:
+                        population = [[5,5,200,200]];
+                        break;
+                }
                 // #POPULATE
                 theCrowd.populate(population);
             }
@@ -132,6 +150,7 @@ sketch.attachFunction = function (processing, vMath) {
         this.neighborsForce = new processing.PVector(0.0,0.0);
         // Behavior Variables
         this.loopGoal = true;
+        this.slowness = Math.random() * (3.5 - 1.5) + 1.5;
         // Color of pedestrian
         this.rColor = Math.floor(Math.random() * (255 - 0)) + 0;          
         this.gColor = Math.floor(Math.random() * (255 - 0)) + 0;
@@ -141,7 +160,6 @@ sketch.attachFunction = function (processing, vMath) {
         {
             location =
                 new processing.PVector(1,1);
-            console.log('--> Pedestrian: Location undefined.');
         } 
         // Movement variables
         this.state = "stop"; //stop, walking, goal
@@ -164,7 +182,7 @@ sketch.attachFunction = function (processing, vMath) {
             this.state = "walking";
         };
         // -
-        this.generateNewRandomGoal = function(){
+        this.generateNewRandomGoal = function(){            
             var xg;// = Math.floor(Math.random() * (WIDTH - 0)) + 0;
             var yg;// = Math.floor(Math.random() * (HEIHT - 0)) + 0;
             do
@@ -278,16 +296,14 @@ sketch.attachFunction = function (processing, vMath) {
                 if(this.loopGoal)
                 {
                     // Asignando una nueva meta
-                    this.generateNewRandomGoal();
-                    console.log("xg: " + this.goalCoord.x + 
-                        " yg: " + this.goalCoord.y);                    
+                    this.generateNewRandomGoal();                 
                 }
             }
             else if(this.state != "stop")
             {
                 //this.state = "walking";
-                this.location.x = this.location.x + actionVector.x/1.3;
-                this.location.y = this.location.y + actionVector.y/1.3;                
+                this.location.x = this.location.x + actionVector.x/this.slowness;
+                this.location.y = this.location.y + actionVector.y/this.slowness;                
             }
         }
     };
@@ -327,7 +343,7 @@ sketch.attachFunction = function (processing, vMath) {
                 _yg = pedBatch[i][3];
                 console.log('--> Ped['+ i +'] Goal: x: ' + _xg + ", y: " + _yg);
                 console.log("------")
-                ped.setNewGoal(_xg, _xg);
+                ped.setNewGoal(_xg, _yg);
                 // No generar nueva meta
                 ped.loopGoal = false;
                 // Incorporar peaton a la multidud
@@ -453,7 +469,7 @@ sketch.attachFunction = function (processing, vMath) {
             pdestrian.alpha = moveVector.heading2D() + processing.radians(90);
 
             // Limit moveVector
-            moveVector.limit(2);            
+            moveVector.limit(5);            
             
             // Move pedestrian acording to calculated vector
             pdestrian.performAction(moveVector);
