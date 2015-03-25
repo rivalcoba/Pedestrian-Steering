@@ -53,7 +53,7 @@ sketch.attachFunction = function (processing, vMath) {
     };
 
     // --------------------------------------
-    // ================= SETUP ==============
+    // ================= #SETUP ==============
     // --------------------------------------
     processing.setup = function () {
         //processing.noLoop();
@@ -68,8 +68,25 @@ sketch.attachFunction = function (processing, vMath) {
             crowdEnable = true;
             // Creating crowd
             theCrowd = new crowd();
+
             // init crowd
-            theCrowd.populateRandomly(crowdPopulation);
+            var inicioManual = confirm("Iniciar manualmente");
+            if(inicioManual){
+                // Inicio manual
+                var population =
+                    [
+                        [10,10,100,100],
+                        [100,100,10,10]
+                    ];
+                // #POPULATE
+                theCrowd.populate(population);
+            }
+            else{
+                // Inicio aleatoreo
+                theCrowd.populateRandomly(crowdPopulation);
+            }
+            // Render background Erase previous
+            processing.background(1, 54, 120);
         }
         else
         {
@@ -101,28 +118,37 @@ sketch.attachFunction = function (processing, vMath) {
             ped.update();
             // Render pedestrian
             ped.render();
-        }        
+        }
     };
 
     // --------------------------------------
     // ================= Pedestrian ============
     // --------------------------------------
     var Pedestrian = function (location) {
+                   
         // Variables
         this.alpha = 0.0; // Pedestrian angle
         // Social Forces
         this.neighborsForce = new processing.PVector(0.0,0.0);
+        // Behavior Variables
+        this.loopGoal = true;
         // Color of pedestrian
         this.rColor = Math.floor(Math.random() * (255 - 0)) + 0;          
         this.gColor = Math.floor(Math.random() * (255 - 0)) + 0;
         this.bColor = Math.floor(Math.random() * (255 - 0)) + 0;
 
+        if(location === undefined)
+        {
+            location =
+                new processing.PVector(1,1);
+            console.log('--> Pedestrian: Location undefined.');
+        } 
         // Movement variables
         this.state = "stop"; //stop, walking, goal
         this.startPosition = new processing.PVector(location.x,location.y);
         this.lastPosition = new processing.PVector(location.x,location.y);
-        this.goalCoord = new processing.PVector(0, 0);
         this.location = new processing.PVector(location.x,location.y);
+        this.goalCoord = new processing.PVector(0, 0);        
         this.velocity = new processing.PVector(0, 0);
         // Extras
         this.aceleration = new processing.PVector(0, 0);
@@ -131,9 +157,11 @@ sketch.attachFunction = function (processing, vMath) {
         this.maxSpeed = 2.0; //  Maximun speed 
 
         // Generate Goals
-        this.generateNewGoal = function(xg, yg){
+        this.setNewGoal = function(xg, yg){
             this.goalCoord = 
                   new processing.PVector(xg, yg);
+            // Asignando el estado de caminando
+            this.state = "walking";
         };
         // -
         this.generateNewRandomGoal = function(){
@@ -141,15 +169,24 @@ sketch.attachFunction = function (processing, vMath) {
             var yg;// = Math.floor(Math.random() * (HEIHT - 0)) + 0;
             do
             {
-                  xg = Math.floor(Math.random() * (WIDTH - 10)) + 0;
-                  yg = Math.floor(Math.random() * (HEIHT - 10)) + 0;
+                xg = Math.floor(Math.random() * (WIDTH - 10)) + 0;
+                yg = Math.floor(Math.random() * (HEIHT - 10)) + 0;
             }while(
                     Math.sqrt(
                         Math.pow(xg - this.location.x,2) + 
                         Math.pow(yg - this.location.y,2)
                         ) < 10);
-            this.goalCoord = 
-                  new processing.PVector(xg, yg);            
+            this.setNewGoal(xg, yg);
+            /*this.goalCoord = 
+            new processing.PVector(xg, yg);*/
+        };
+
+        // Genera posicion aleatoria
+        this.generateNewRandomLocation = function(){
+            var xg = Math.floor(Math.random() * (WIDTH - 0)) + 0;
+            var yg = Math.floor(Math.random() * (HEIHT - 0)) + 0;
+            this.location = 
+                new processing.PVector(xg, yg);            
         };
 
         // Hello function
@@ -187,6 +224,14 @@ sketch.attachFunction = function (processing, vMath) {
             processing.ellipse(this.goalCoord.x,this.goalCoord.y,10,10);
         };
 
+        this.setLocation = function(x, y){
+            var location = new processing.PVector(x, y);            
+            this.startPosition = new processing.PVector(location.x,location.y);
+            this.lastPosition = new processing.PVector(location.x,location.y);
+            this.location = new processing.PVector(location.x,location.y);
+            this.velocity = new processing.PVector(0, 0);
+        }
+
         // Get the last displacement
         this.getLastDisplacement = function () {
             return new processing.PVector.sub(this.lastPosition, this.startPosition);
@@ -217,40 +262,30 @@ sketch.attachFunction = function (processing, vMath) {
 
         // Perform Action
         this.performAction = function(actionVector){
-            this.lastPosition = 
-                  new processing.PVector(
-                        this.location.x,
-                        this.location.y);
+            this.lastPosition = new processing.PVector(
+                this.location.x,
+                this.location.y);
             if( this.state === "goal") //stop, walking, goal)
             {
-                // Se genera nueva meta
-                // TODO: Generar nueva meta                                
-                //console.log("Llego a la meta");
+                // Se para el peaton
                 this.state = "stop";
                 
                 // Ajustando posicion de meta
-                this.location = 
-                    new processing.PVector(this.goalCoord.x, this.goalCoord.y);
+                this.setLocation(
+                    this.goalCoord.x,
+                    this.goalCoord.y);
 
-                // Actualizando la posición anterior
-                this.startPosition = 
-                    new processing.PVector(this.location.x,this.location.y);
-                this.lastPosition = 
-                    new processing.PVector(this.location.x,this.location.y);
-
-                this.velocity = new processing.PVector(0, 0);
-
-                // Asignando una nueva meta
-                this.generateNewRandomGoal();
-                console.log("xg: " + this.goalCoord.x + 
-                  " yg: " + this.goalCoord.y);
-
-                // Asignando el estado de caminando
-                this.state = "walking";                
+                if(this.loopGoal)
+                {
+                    // Asignando una nueva meta
+                    this.generateNewRandomGoal();
+                    console.log("xg: " + this.goalCoord.x + 
+                        " yg: " + this.goalCoord.y);                    
+                }
             }
-            else
+            else if(this.state != "stop")
             {
-                this.state = "walking";
+                //this.state = "walking";
                 this.location.x = this.location.x + actionVector.x/1.3;
                 this.location.y = this.location.y + actionVector.y/1.3;                
             }
@@ -273,13 +308,30 @@ sketch.attachFunction = function (processing, vMath) {
             this.crowdArray.push(pedestrian);
             this.population++;
         };
-
+        // #POPULATE
         this.populate = function(pedBatch){
-            for(var i = 0; i < pedBatch.length; i++)
-            {
-                  // TODO-NOW: Terminar
-                  // la funcion que agrega
-                  // una multitud por lote [loc,goal]
+            this.population = pedBatch.length;
+            for(var i = 0; i < this.population; i++)
+            {                
+                // La funcion que agrega
+                // una multitud por lote [loc,goal]
+                // Creando al peaton
+                var ped = new Pedestrian();
+                // Asignando posición
+                var _xg = pedBatch[i][0];
+                var _yg = pedBatch[i][1];
+                console.log('--> Ped['+ i +'] location: x: ' + _xg + ", y: " + _yg);
+                ped.setLocation(_xg, _yg);
+                // Asignando nueva menta
+                _xg = pedBatch[i][2];
+                _yg = pedBatch[i][3];
+                console.log('--> Ped['+ i +'] Goal: x: ' + _xg + ", y: " + _yg);
+                console.log("------")
+                ped.setNewGoal(_xg, _xg);
+                // No generar nueva meta
+                ped.loopGoal = false;
+                // Incorporar peaton a la multidud
+                this.crowdArray.push(ped);
             }
         };
         // 
@@ -288,15 +340,10 @@ sketch.attachFunction = function (processing, vMath) {
             // Initialize Crowd
             for(var i = 0; i < this.population; i++)
             {
-                  // Creating position
-                  // Asignando una nueva meta
-                  var _xg = Math.floor(Math.random() * (WIDTH - 0)) + 0;
-                  var _yg = Math.floor(Math.random() * (HEIHT - 0)) + 0;
-                  ped = new Pedestrian(new processing.PVector(_xg, _yg));
-                  _xg = Math.floor(Math.random() * (WIDTH - 0)) + 0;
-                  _yg = Math.floor(Math.random() * (HEIHT - 0)) + 0;
-                  ped.goalCoord = new processing.PVector(_xg, _xg);
-                  this.crowdArray.push(ped);
+                var ped = new Pedestrian();
+                ped.generateNewRandomGoal();
+                ped.generateNewRandomLocation();
+                this.crowdArray.push(ped);
             };
         };
 
@@ -359,11 +406,13 @@ sketch.attachFunction = function (processing, vMath) {
             // Calculating clossenes percetange
             var closenessComponent = 
                 vMath.ClosenessPercentage(displacement, normGoal);
+            /*if(closenessComponent < 0)
+                pdestrian.state = "stop";*/
 
             // The Character got the goal
             if(closenessComponent >= 0.95)
             {
-                pdestrian.state = "goal";                
+                pdestrian.state = "goal";
             }
 
             // Construcción del vector de caracteristicas
@@ -396,7 +445,6 @@ sketch.attachFunction = function (processing, vMath) {
             
             // Rotate vector (Unormilize)
             moveVector = vMath.rotate2DVector(moveVector, -angle);
-            
 
             // Adding social neighbors forces
             moveVector.add(pdestrian.neighborsForce);
@@ -503,6 +551,8 @@ sketch.attachFunction = function (processing, vMath) {
         // 1: Vel x
         // 2: Vel y
         // 3: Clossenes
+        // 4: Action x
+        // 5: Action y
         matrixOfBehaviors:
             [[ 2.84, 0.00, 0.00, 0.00, 0.00, 2.84],
             [ 2.84, 0.00, 2.84, 1.00, 0.00, 0.00],
